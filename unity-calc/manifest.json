@@ -2,7 +2,7 @@
   "name": "Unity Publisher Calculator",
   "short_name": "UA Calc",
   "description": "Unity Asset Store profit calculator for publishers",
-  "start_url": "/index.html",
+  "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#0d0d0f",
   "theme_color": "#7c6af7",
