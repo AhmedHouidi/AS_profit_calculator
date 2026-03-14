@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Unity Publisher Calculator</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#7c6af7">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="UA Calc">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d0d0f;
+    --surface: #16161a;
+    --surface2: #1e1e24;
+    --surface3: #26262e;
+    --border: rgba(255,255,255,0.07);
+    --border2: rgba(255,255,255,0.12);
+    --accent: #7c6af7;
+    --accent2: #a594ff;
+    --green: #3ddc84;
+    --red: #ff5f5f;
+    --amber: #ffb547;
+    --text: #f0f0f5;
+    --muted: #7a7a8e;
+    --mono: 'Space Mono', monospace;
+    --sans: 'DM Sans', sans-serif;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { font-size: 16px; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    padding: 0;
+    overflow-x: hidden;
+  }
+
+  /* Grid background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(124,106,247,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(124,106,247,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .app {
+    position: relative;
+    z-index: 1;
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 24px 16px 60px;
+  }
+
+  /* Header */
+  .header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 28px;
+    animation: fadeDown 0.5s ease both;
+  }
+  .logo {
+    width: 36px; height: 36px;
+    background: var(--accent);
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 700;
+    color: #fff;
+    flex-shrink: 0;
+  }
+  .header-text h1 {
+    font-family: var(--mono);
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: -0.01em;
+    line-height: 1;
+  }
+  .header-text p {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+
+  /* Tabs */
+  .tabs {
+    display: flex;
+    gap: 4px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 4px;
+    margin-bottom: 20px;
+    animation: fadeDown 0.5s 0.1s ease both;
+  }
+  .tab {
+    flex: 1;
+    padding: 8px;
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    font-family: var(--sans);
+    font-size: 12px;
+    font-weight: 500;
+    border-radius: 9px;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+  .tab.active {
+    background: var(--surface3);
+    color: var(--text);
+  }
+
+  /* Panel */
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  /* Card */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 18px;
+    margin-bottom: 12px;
+    animation: fadeUp 0.4s ease both;
+  }
+  .card-title {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 14px;
+  }
+
+  /* Form */
+  .field { margin-bottom: 14px; }
+  .field:last-of-type { margin-bottom: 0; }
+  .field label {
+    display: block;
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 6px;
+    font-weight: 500;
+  }
+  .field input, .field select {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: 10px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 15px;
+    padding: 11px 14px;
+    outline: none;
+    transition: border-color 0.2s;
+    -webkit-appearance: none;
+  }
+  .field input:focus, .field select:focus {
+    border-color: var(--accent);
+  }
+  .field input::placeholder { color: var(--muted); font-size: 13px; }
+  .field select option { background: var(--surface2); }
+
+  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+  /* Discount pills */
+  .discount-pills {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-top: 4px;
+  }
+  .pill {
+    padding: 5px 12px;
+    border-radius: 99px;
+    border: 1px solid var(--border2);
+    background: transparent;
+    color: var(--muted);
+    font-size: 12px;
+    font-family: var(--mono);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .pill.active, .pill:hover {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+
+  /* Calculate button */
+  .calc-btn {
+    width: 100%;
+    padding: 14px;
+    background: var(--accent);
+    border: none;
+    border-radius: 12px;
+    color: #fff;
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    margin-top: 14px;
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+  .calc-btn:hover { background: var(--accent2); transform: translateY(-1px); }
+  .calc-btn:active { transform: scale(0.98); }
+
+  /* Results */
+  .results { display: none; }
+  .results.show { display: block; }
+
+  .breakdown-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 18px;
+    margin-bottom: 12px;
+  }
+  .breakdown-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 9px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+  }
+  .breakdown-row:last-child { border-bottom: none; padding-bottom: 0; }
+  .breakdown-row.total {
+    padding-top: 12px;
+    margin-top: 2px;
+  }
+  .breakdown-row .row-label { color: var(--muted); }
+  .breakdown-row .row-value { font-family: var(--mono); font-weight: 700; }
+  .breakdown-row.total .row-label { color: var(--text); font-weight: 600; font-size: 14px; }
+  .breakdown-row.total .row-value { font-size: 20px; color: var(--green); }
+
+  .metrics-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+  .metric-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 14px;
+  }
+  .metric-box .m-label { font-size: 11px; color: var(--muted); margin-bottom: 6px; }
+  .metric-box .m-value { font-family: var(--mono); font-size: 18px; font-weight: 700; }
+  .m-green { color: var(--green); }
+  .m-red { color: var(--red); }
+  .m-amber { color: var(--amber); }
+  .m-purple { color: var(--accent2); }
+
+  /* Payout tracker */
+  .payout-bar-wrap {
+    background: var(--surface2);
+    border-radius: 99px;
+    height: 8px;
+    overflow: hidden;
+    margin: 10px 0 6px;
+  }
+  .payout-bar {
+    height: 100%;
+    border-radius: 99px;
+    background: linear-gradient(90deg, var(--accent), var(--green));
+    transition: width 0.6s cubic-bezier(0.34,1.56,0.64,1);
+  }
+  .payout-note { font-size: 12px; color: var(--muted); }
+  .payout-note span { color: var(--green); font-family: var(--mono); font-weight: 700; }
+
+  /* Scenario compare */
+  .scenario-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .scenario-box {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px;
+  }
+  .scenario-box .s-title { font-size: 11px; color: var(--muted); margin-bottom: 8px; }
+  .scenario-box .s-value { font-family: var(--mono); font-size: 16px; font-weight: 700; color: var(--green); }
+  .scenario-box .s-sub { font-size: 11px; color: var(--muted); margin-top: 3px; }
+  .scenario-box.winner { border-color: var(--green); }
+  .winner-badge {
+    display: inline-block;
+    font-size: 10px;
+    background: rgba(61,220,132,0.15);
+    color: var(--green);
+    border-radius: 99px;
+    padding: 2px 8px;
+    margin-bottom: 6px;
+    font-family: var(--mono);
+  }
+
+  /* Info pill */
+  .info-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--muted);
+    background: var(--surface2);
+    border-radius: 10px;
+    padding: 10px 12px;
+    margin-top: 10px;
+  }
+  .info-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
+
+  @keyframes fadeDown { from { opacity:0; transform:translateY(-10px); } to { opacity:1; transform:none; } }
+  @keyframes fadeUp { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:none; } }
+  .anim-1 { animation-delay: 0.0s; }
+  .anim-2 { animation-delay: 0.08s; }
+  .anim-3 { animation-delay: 0.16s; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="header">
+    <div class="logo">UA</div>
+    <div class="header-text">
+      <h1>Publisher Calculator</h1>
+      <p>Unity Asset Store · 70/30 split</p>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('profit')">Profit</button>
+    <button class="tab" onclick="switchTab('discount')">Discount compare</button>
+    <button class="tab" onclick="switchTab('payout')">Payout tracker</button>
+  </div>
+
+  <!-- PROFIT TAB -->
+  <div class="panel active" id="panel-profit">
+    <div class="card anim-1">
+      <div class="card-title">Asset details</div>
+      <div class="field">
+        <label>Asset price (USD)</label>
+        <input type="number" id="p-price" placeholder="e.g. 29.99" min="4.99" step="0.01">
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>Number of sales</label>
+          <input type="number" id="p-sales" placeholder="e.g. 100" min="1" step="1">
+        </div>
+        <div class="field">
+          <label>Refund rate (%)</label>
+          <input type="number" id="p-refund" placeholder="0" min="0" max="100" step="1" value="0">
+        </div>
+      </div>
+      <div class="field">
+        <label>Discount (%)</label>
+        <div class="discount-pills">
+          <button class="pill active" onclick="setDiscount(0, this)">None</button>
+          <button class="pill" onclick="setDiscount(10, this)">10%</button>
+          <button class="pill" onclick="setDiscount(30, this)">30%</button>
+          <button class="pill" onclick="setDiscount(50, this)">50%</button>
+          <button class="pill" onclick="setDiscount('custom', this)">Custom</button>
+        </div>
+        <input type="number" id="p-discount" value="0" min="0" max="90" step="1" style="margin-top:8px;display:none" placeholder="Enter %">
+      </div>
+      <button class="calc-btn" onclick="calcProfit()">CALCULATE PROFIT</button>
+    </div>
+
+    <div class="results" id="profit-results">
+      <div class="metrics-grid">
+        <div class="metric-box anim-1">
+          <div class="m-label">Your net revenue</div>
+          <div class="m-value m-green" id="r-net">—</div>
+        </div>
+        <div class="metric-box anim-1">
+          <div class="m-label">Per sale (you keep)</div>
+          <div class="m-value m-purple" id="r-per">—</div>
+        </div>
+        <div class="metric-box anim-2">
+          <div class="m-label">Unity takes</div>
+          <div class="m-value m-red" id="r-unity">—</div>
+        </div>
+        <div class="metric-box anim-2">
+          <div class="m-label">Lost to discounts</div>
+          <div class="m-value m-amber" id="r-disc">—</div>
+        </div>
+      </div>
+      <div class="breakdown-card">
+        <div class="card-title">Full breakdown</div>
+        <div id="r-breakdown"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DISCOUNT COMPARE TAB -->
+  <div class="panel" id="panel-discount">
+    <div class="card anim-1">
+      <div class="card-title">Compare sale scenarios</div>
+      <div class="field">
+        <label>Asset price (USD)</label>
+        <input type="number" id="d-price" placeholder="e.g. 29.99" min="4.99" step="0.01">
+      </div>
+      <div class="field">
+        <label>Expected sales (no discount)</label>
+        <input type="number" id="d-sales" placeholder="e.g. 50" min="1" step="1">
+      </div>
+      <div class="field">
+        <label>Sales boost during discount (multiplier)</label>
+        <input type="number" id="d-boost" placeholder="e.g. 2 = double sales" min="1" step="0.1" value="2">
+      </div>
+      <button class="calc-btn" onclick="calcDiscount()">COMPARE SCENARIOS</button>
+    </div>
+    <div class="results" id="discount-results">
+      <div class="card anim-1">
+        <div class="card-title">Side by side</div>
+        <div class="scenario-grid" id="d-grid"></div>
+        <div class="info-row"><div class="info-dot"></div><span id="d-note">—</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PAYOUT TRACKER TAB -->
+  <div class="panel" id="panel-payout">
+    <div class="card anim-1">
+      <div class="card-title">Monthly earnings tracker</div>
+      <div class="field">
+        <label>Revenue earned this month (USD)</label>
+        <input type="number" id="pt-earned" placeholder="e.g. 180" min="0" step="0.01">
+      </div>
+      <div class="field">
+        <label>Payout method</label>
+        <select id="pt-method">
+          <option value="100">PayPal — threshold $100</option>
+          <option value="250">Wire transfer — threshold $250</option>
+        </select>
+      </div>
+      <button class="calc-btn" onclick="calcPayout()">CHECK PAYOUT STATUS</button>
+    </div>
+    <div class="results" id="payout-results">
+      <div class="breakdown-card anim-1">
+        <div class="card-title">Payout status</div>
+        <div class="payout-bar-wrap"><div class="payout-bar" id="pt-bar" style="width:0%"></div></div>
+        <div class="payout-note" id="pt-note">—</div>
+        <div id="pt-breakdown" style="margin-top:14px"></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  let currentDiscount = 0;
+
+  function switchTab(id) {
+    document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', ['profit','discount','payout'][i]===id));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    document.getElementById('panel-'+id).classList.add('active');
+  }
+
+  function setDiscount(val, el) {
+    document.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
+    el.classList.add('active');
+    const inp = document.getElementById('p-discount');
+    if (val === 'custom') {
+      inp.style.display = 'block';
+      currentDiscount = parseFloat(inp.value) || 0;
+    } else {
+      inp.style.display = 'none';
+      currentDiscount = val;
+      inp.value = val;
+    }
+  }
+
+  function fmt(v) { return '$' + v.toFixed(2); }
+  function fmtK(v) { return v >= 1000 ? '$' + (v/1000).toFixed(1) + 'k' : fmt(v); }
+
+  function calcProfit() {
+    const price = parseFloat(document.getElementById('p-price').value) || 0;
+    const sales = parseInt(document.getElementById('p-sales').value) || 0;
+    const refundRate = (parseFloat(document.getElementById('p-refund').value) || 0) / 100;
+    const discInp = document.getElementById('p-discount');
+    if (discInp.style.display !== 'none') currentDiscount = parseFloat(discInp.value) || 0;
+
+    if (!price || !sales) { alert('Enter price and number of sales.'); return; }
+
+    const discountedPrice = price * (1 - currentDiscount / 100);
+    const grossRevenue = discountedPrice * sales;
+    const refundAmount = grossRevenue * refundRate;
+    const netGross = grossRevenue - refundAmount;
+    const unityCut = netGross * 0.30;
+    const publisherNet = netGross * 0.70;
+    const perSale = publisherNet / sales;
+    const lostToDiscount = (price - discountedPrice) * sales;
+    const lostToRefund = refundAmount * 0.70;
+
+    document.getElementById('r-net').textContent = fmtK(publisherNet);
+    document.getElementById('r-per').textContent = fmt(perSale);
+    document.getElementById('r-unity').textContent = fmtK(unityCut);
+    document.getElementById('r-disc').textContent = currentDiscount > 0 ? fmtK(lostToDiscount * 0.70) : '$0.00';
+
+    const rows = [
+      ['Full price', fmt(price), ''],
+      ['Price after ' + (currentDiscount > 0 ? currentDiscount + '% discount' : 'no discount'), fmt(discountedPrice), ''],
+      ['Gross revenue (' + sales + ' sales)', fmt(grossRevenue), ''],
+      refundRate > 0 ? ['Refunds (' + (refundRate*100).toFixed(0) + '%)', '−' + fmt(refundAmount), 'red'] : null,
+      ['Net gross', fmt(netGross), ''],
+      ['Unity cut (30%)', '−' + fmt(unityCut), 'red'],
+      ['Your net (70%)', fmt(publisherNet), 'green'],
+    ].filter(Boolean);
+
+    document.getElementById('r-breakdown').innerHTML = rows.map((r, i) => {
+      const isLast = i === rows.length - 1;
+      const cls = isLast ? 'breakdown-row total' : 'breakdown-row';
+      const valColor = r[2] === 'red' ? 'color:var(--red)' : r[2] === 'green' ? 'color:var(--green)' : '';
+      return `<div class="${cls}"><span class="row-label">${r[0]}</span><span class="row-value" style="${valColor}">${r[1]}</span></div>`;
+    }).join('');
+
+    document.getElementById('profit-results').classList.add('show');
+  }
+
+  function calcDiscount() {
+    const price = parseFloat(document.getElementById('d-price').value) || 0;
+    const sales = parseInt(document.getElementById('d-sales').value) || 0;
+    const boost = parseFloat(document.getElementById('d-boost').value) || 2;
+    if (!price || !sales) { alert('Enter price and sales.'); return; }
+
+    const scenarios = [
+      { label: 'No discount', disc: 0, salesMult: 1 },
+      { label: '10% off', disc: 10, salesMult: boost * 0.5 },
+      { label: '30% off', disc: 30, salesMult: boost * 0.8 },
+      { label: '50% off', disc: 50, salesMult: boost },
+    ];
+
+    const results = scenarios.map(s => {
+      const discPrice = price * (1 - s.disc / 100);
+      const totalSales = Math.round(sales * s.salesMult);
+      const gross = discPrice * totalSales;
+      const net = gross * 0.70;
+      return { ...s, net, totalSales, discPrice };
+    });
+
+    const best = results.reduce((a, b) => a.net > b.net ? a : b);
+
+    document.getElementById('d-grid').innerHTML = results.map(r => {
+      const isWinner = r.label === best.label;
+      return `<div class="scenario-box ${isWinner ? 'winner' : ''}">
+        ${isWinner ? '<div class="winner-badge">best profit</div>' : ''}
+        <div class="s-title">${r.label}</div>
+        <div class="s-value">${fmtK(r.net)}</div>
+        <div class="s-sub">${r.totalSales} sales · ${fmt(r.discPrice)}/ea</div>
+      </div>`;
+    }).join('');
+
+    document.getElementById('d-note').textContent =
+      `With a ${best.label.toLowerCase()}, you'd earn ${fmtK(best.net)} — the best scenario based on your boost estimate.`;
+
+    document.getElementById('discount-results').classList.add('show');
+  }
+
+  function calcPayout() {
+    const earned = parseFloat(document.getElementById('pt-earned').value) || 0;
+    const threshold = parseInt(document.getElementById('pt-method').value);
+    const method = threshold === 100 ? 'PayPal' : 'Wire transfer';
+    const pct = Math.min((earned / threshold) * 100, 100);
+    const remaining = Math.max(threshold - earned, 0);
+
+    document.getElementById('pt-bar').style.width = pct.toFixed(0) + '%';
+
+    if (earned >= threshold) {
+      document.getElementById('pt-note').innerHTML = `<span>Ready to pay out!</span> You've reached the ${method} threshold.`;
+    } else {
+      document.getElementById('pt-note').innerHTML = `<span>${fmt(remaining)}</span> more needed to reach ${method} payout threshold.`;
+    }
+
+    document.getElementById('pt-breakdown').innerHTML = `
+      <div class="breakdown-row"><span class="row-label">Earned this month</span><span class="row-value" style="color:var(--green)">${fmt(earned)}</span></div>
+      <div class="breakdown-row"><span class="row-label">Payout threshold (${method})</span><span class="row-value">${fmt(threshold)}</span></div>
+      <div class="breakdown-row"><span class="row-label">Progress</span><span class="row-value" style="color:var(--accent2)">${pct.toFixed(0)}%</span></div>
+      <div class="breakdown-row total"><span class="row-label">${earned >= threshold ? 'Eligible for payout' : 'Still needed'}</span><span class="row-value" style="color:${earned >= threshold ? 'var(--green)' : 'var(--amber)'}">${earned >= threshold ? 'YES' : fmt(remaining)}</span></div>
+    `;
+
+    document.getElementById('payout-results').classList.add('show');
+  }
+</script>
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/sw.js');
+    });
+  }
+</script>
+</body>
+</html>
