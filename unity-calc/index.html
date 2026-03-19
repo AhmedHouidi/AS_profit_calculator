@@ -323,6 +323,7 @@
   .anim-1 { animation-delay: 0.0s; }
   .anim-2 { animation-delay: 0.08s; }
   .anim-3 { animation-delay: 0.16s; }
+  .scenario-box .s-dzd { font-size: 11px; color: var(--accent2); font-family: var(--mono); margin-top: 2px; }
 </style>
 </head>
 <body>
@@ -338,8 +339,9 @@
 
   <div class="tabs">
     <button class="tab active" onclick="switchTab('profit')">Profit</button>
-    <button class="tab" onclick="switchTab('discount')">Discount compare</button>
-    <button class="tab" onclick="switchTab('payout')">Payout tracker</button>
+    <button class="tab" onclick="switchTab('discount')">Discount</button>
+    <button class="tab" onclick="switchTab('payout')">Payout</button>
+    <button class="tab" onclick="switchTab('settings')">Settings</button>
   </div>
 
   <!-- PROFIT TAB -->
@@ -453,14 +455,89 @@
       </div>
     </div>
   </div>
+  <!-- SETTINGS TAB -->
+  <div class="panel" id="panel-settings">
+    <div class="card anim-1">
+      <div class="card-title">Currency settings</div>
+      <div class="field">
+        <label>Display currency</label>
+        <select id="s-currency" onchange="saveCurrency()">
+          <option value="usd">USD — US Dollar ($)</option>
+          <option value="dzd">DZD — Algerian Dinar (دج)</option>
+          <option value="both">Both USD + DZD</option>
+        </select>
+      </div>
+      <div class="field" id="s-rate-field">
+        <label>USD → DZD exchange rate</label>
+        <input type="number" id="s-rate" value="240" min="1" step="1" placeholder="e.g. 240" oninput="saveCurrency()">
+        <div style="margin-top:6px;font-size:11px;color:var(--muted)">$1 USD = <span id="s-rate-preview">240</span> DZD · Change this anytime to match current rate</div>
+      </div>
+    </div>
+    <div class="card anim-2">
+      <div class="card-title">Quick rate presets</div>
+      <div class="discount-pills" style="margin-top:0">
+        <button class="pill" onclick="setRate(240)">240 DZD</button>
+        <button class="pill" onclick="setRate(245)">245 DZD</button>
+        <button class="pill" onclick="setRate(250)">250 DZD</button>
+        <button class="pill" onclick="setRate(260)">260 DZD</button>
+      </div>
+    </div>
+    <div class="card anim-3" style="border-color:rgba(124,106,247,0.2)">
+      <div class="card-title">Preview</div>
+      <div id="s-preview-rows"></div>
+    </div>
+  </div>
 
 </div>
 
 <script>
   let currentDiscount = 0;
+  let cfg = { currency: 'both', rate: 240 };
+
+  function loadSettings() {
+    try {
+      const saved = JSON.parse(localStorage.getItem('ua-cfg') || '{}');
+      if (saved.currency) cfg.currency = saved.currency;
+      if (saved.rate) cfg.rate = saved.rate;
+    } catch(e) {}
+    document.getElementById('s-currency').value = cfg.currency;
+    document.getElementById('s-rate').value = cfg.rate;
+    document.getElementById('s-rate-preview').textContent = cfg.rate;
+    updateRateFieldVisibility();
+    updateSettingsPreview();
+  }
+
+  function saveCurrency() {
+    cfg.currency = document.getElementById('s-currency').value;
+    cfg.rate = parseFloat(document.getElementById('s-rate').value) || 240;
+    document.getElementById('s-rate-preview').textContent = cfg.rate;
+    try { localStorage.setItem('ua-cfg', JSON.stringify(cfg)); } catch(e) {}
+    updateRateFieldVisibility();
+    updateSettingsPreview();
+  }
+
+  function updateRateFieldVisibility() {
+    document.getElementById('s-rate-field').style.display = cfg.currency === 'usd' ? 'none' : 'block';
+  }
+
+  function setRate(val) {
+    document.getElementById('s-rate').value = val;
+    saveCurrency();
+  }
+
+  function updateSettingsPreview() {
+    const examples = [100, 500, 1000];
+    document.getElementById('s-preview-rows').innerHTML = examples.map(usd => {
+      const dzd = usd * cfg.rate;
+      return `<div class="breakdown-row">
+        <span class="row-label">$${usd} USD</span>
+        <span class="row-value" style="color:var(--accent2)">${fmtDZD(dzd)}</span>
+      </div>`;
+    }).join('');
+  }
 
   function switchTab(id) {
-    document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', ['profit','discount','payout'][i]===id));
+    document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', ['profit','discount','payout','settings'][i]===id));
     document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
     document.getElementById('panel-'+id).classList.add('active');
   }
@@ -479,8 +556,22 @@
     }
   }
 
-  function fmt(v) { return '$' + v.toFixed(2); }
-  function fmtK(v) { return v >= 1000 ? '$' + (v/1000).toFixed(1) + 'k' : fmt(v); }
+  function fmtUSD(v) { return '$' + v.toFixed(2); }
+  function fmtUSDK(v) { return v >= 1000 ? '$' + (v/1000).toFixed(1) + 'k' : fmtUSD(v); }
+  function fmtDZD(v) {
+    if (v >= 1000000) return (v/1000000).toFixed(2) + 'M دج';
+    if (v >= 1000) return (v/1000).toFixed(1) + 'k دج';
+    return Math.round(v) + ' دج';
+  }
+
+  function fmtVal(usdVal, showK) {
+    const usdStr = showK ? fmtUSDK(usdVal) : fmtUSD(usdVal);
+    const dzdVal = usdVal * cfg.rate;
+    const dzdStr = fmtDZD(dzdVal);
+    if (cfg.currency === 'usd') return usdStr;
+    if (cfg.currency === 'dzd') return dzdStr;
+    return usdStr + ' <span style="color:var(--accent2);font-size:12px">· ' + dzdStr + '</span>';
+  }
 
   function calcProfit() {
     const price = parseFloat(document.getElementById('p-price').value) || 0;
@@ -488,7 +579,6 @@
     const refundRate = (parseFloat(document.getElementById('p-refund').value) || 0) / 100;
     const discInp = document.getElementById('p-discount');
     if (discInp.style.display !== 'none') currentDiscount = parseFloat(discInp.value) || 0;
-
     if (!price || !sales) { alert('Enter price and number of sales.'); return; }
 
     const discountedPrice = price * (1 - currentDiscount / 100);
@@ -499,27 +589,27 @@
     const publisherNet = netGross * 0.70;
     const perSale = publisherNet / sales;
     const lostToDiscount = (price - discountedPrice) * sales;
-    const lostToRefund = refundAmount * 0.70;
 
-    document.getElementById('r-net').textContent = fmtK(publisherNet);
-    document.getElementById('r-per').textContent = fmt(perSale);
-    document.getElementById('r-unity').textContent = fmtK(unityCut);
-    document.getElementById('r-disc').textContent = currentDiscount > 0 ? fmtK(lostToDiscount * 0.70) : '$0.00';
+    document.getElementById('r-net').innerHTML = fmtVal(publisherNet, true);
+    document.getElementById('r-per').innerHTML = fmtVal(perSale, false);
+    document.getElementById('r-unity').innerHTML = fmtVal(unityCut, true);
+    document.getElementById('r-disc').innerHTML = currentDiscount > 0 ? fmtVal(lostToDiscount * 0.70, true) : '$0.00';
 
     const rows = [
-      ['Full price', fmt(price), ''],
-      ['Price after ' + (currentDiscount > 0 ? currentDiscount + '% discount' : 'no discount'), fmt(discountedPrice), ''],
-      ['Gross revenue (' + sales + ' sales)', fmt(grossRevenue), ''],
-      refundRate > 0 ? ['Refunds (' + (refundRate*100).toFixed(0) + '%)', '−' + fmt(refundAmount), 'red'] : null,
-      ['Net gross', fmt(netGross), ''],
-      ['Unity cut (30%)', '−' + fmt(unityCut), 'red'],
-      ['Your net (70%)', fmt(publisherNet), 'green'],
+      ['Full price', fmtUSD(price), ''],
+      ['Price after ' + (currentDiscount > 0 ? currentDiscount + '% discount' : 'no discount'), fmtUSD(discountedPrice), ''],
+      ['Gross revenue (' + sales + ' sales)', fmtUSD(grossRevenue), ''],
+      refundRate > 0 ? ['Refunds (' + (refundRate*100).toFixed(0) + '%)', '−' + fmtUSD(refundAmount), 'red'] : null,
+      ['Net gross', fmtUSD(netGross), ''],
+      ['Unity cut (30%)', '−' + fmtUSD(unityCut), 'red'],
+      ['Your net USD (70%)', fmtUSD(publisherNet), 'green'],
+      cfg.currency !== 'usd' ? ['Your net DZD (× ' + cfg.rate + ')', fmtDZD(publisherNet * cfg.rate), 'purple'] : null,
     ].filter(Boolean);
 
     document.getElementById('r-breakdown').innerHTML = rows.map((r, i) => {
       const isLast = i === rows.length - 1;
       const cls = isLast ? 'breakdown-row total' : 'breakdown-row';
-      const valColor = r[2] === 'red' ? 'color:var(--red)' : r[2] === 'green' ? 'color:var(--green)' : '';
+      const valColor = r[2] === 'red' ? 'color:var(--red)' : r[2] === 'green' ? 'color:var(--green)' : r[2] === 'purple' ? 'color:var(--accent2)' : '';
       return `<div class="${cls}"><span class="row-label">${r[0]}</span><span class="row-value" style="${valColor}">${r[1]}</span></div>`;
     }).join('');
 
@@ -551,16 +641,19 @@
 
     document.getElementById('d-grid').innerHTML = results.map(r => {
       const isWinner = r.label === best.label;
+      const mainVal = cfg.currency === 'dzd' ? fmtDZD(r.net * cfg.rate) : fmtUSDK(r.net);
+      const subDZD = cfg.currency !== 'usd' ? '<div class="s-dzd">' + fmtDZD(r.net * cfg.rate) + '</div>' : '';
       return `<div class="scenario-box ${isWinner ? 'winner' : ''}">
         ${isWinner ? '<div class="winner-badge">best profit</div>' : ''}
         <div class="s-title">${r.label}</div>
-        <div class="s-value">${fmtK(r.net)}</div>
-        <div class="s-sub">${r.totalSales} sales · ${fmt(r.discPrice)}/ea</div>
+        <div class="s-value">${mainVal}</div>
+        ${cfg.currency === 'both' ? subDZD : ''}
+        <div class="s-sub">${r.totalSales} sales · ${fmtUSD(r.discPrice)}/ea</div>
       </div>`;
     }).join('');
 
     document.getElementById('d-note').textContent =
-      `With a ${best.label.toLowerCase()}, you'd earn ${fmtK(best.net)} — the best scenario based on your boost estimate.`;
+      `With a ${best.label.toLowerCase()}, you'd earn ${fmtUSDK(best.net)} — the best scenario based on your boost estimate.`;
 
     document.getElementById('discount-results').classList.add('show');
   }
@@ -577,18 +670,23 @@
     if (earned >= threshold) {
       document.getElementById('pt-note').innerHTML = `<span>Ready to pay out!</span> You've reached the ${method} threshold.`;
     } else {
-      document.getElementById('pt-note').innerHTML = `<span>${fmt(remaining)}</span> more needed to reach ${method} payout threshold.`;
+      document.getElementById('pt-note').innerHTML = `<span>${fmtUSD(remaining)}</span> more needed to reach ${method} payout threshold.`;
     }
 
+    const earnedDZD = cfg.currency !== 'usd' ? `<div class="breakdown-row"><span class="row-label">Earned in DZD</span><span class="row-value" style="color:var(--accent2)">${fmtDZD(earned * cfg.rate)}</span></div>` : '';
+
     document.getElementById('pt-breakdown').innerHTML = `
-      <div class="breakdown-row"><span class="row-label">Earned this month</span><span class="row-value" style="color:var(--green)">${fmt(earned)}</span></div>
-      <div class="breakdown-row"><span class="row-label">Payout threshold (${method})</span><span class="row-value">${fmt(threshold)}</span></div>
+      <div class="breakdown-row"><span class="row-label">Earned this month</span><span class="row-value" style="color:var(--green)">${fmtUSD(earned)}</span></div>
+      ${earnedDZD}
+      <div class="breakdown-row"><span class="row-label">Threshold (${method})</span><span class="row-value">${fmtUSD(threshold)}</span></div>
       <div class="breakdown-row"><span class="row-label">Progress</span><span class="row-value" style="color:var(--accent2)">${pct.toFixed(0)}%</span></div>
-      <div class="breakdown-row total"><span class="row-label">${earned >= threshold ? 'Eligible for payout' : 'Still needed'}</span><span class="row-value" style="color:${earned >= threshold ? 'var(--green)' : 'var(--amber)'}">${earned >= threshold ? 'YES' : fmt(remaining)}</span></div>
+      <div class="breakdown-row total"><span class="row-label">${earned >= threshold ? 'Eligible for payout' : 'Still needed'}</span><span class="row-value" style="color:${earned >= threshold ? 'var(--green)' : 'var(--amber)'}">${earned >= threshold ? 'YES' : fmtUSD(remaining)}</span></div>
     `;
 
     document.getElementById('payout-results').classList.add('show');
   }
+
+  loadSettings();
 </script>
 <script>
   if ('serviceWorker' in navigator) {
